@@ -1,2 +1,11 @@
 flask
 torch
+matplotlib
+pillow
+numpy
+io
+torch.nn
+logging
+os
+PIL
+torchvision --index-url https://download.pytorch.org/whl/cu118
