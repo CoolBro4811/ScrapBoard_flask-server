@@ -8,9 +8,11 @@ from torchvision import models
 import os
 import logging
 import torch.nn as nn
+import base64
+from io import BytesIO
+
 # Initialize Flask app
 app = Flask(__name__)
-
 
 # Dataset configuration (load dataset once)
 data_dir = './downloads/Garbage classification/Garbage classification'  # Path to the directory where your image folders are stored
@@ -40,7 +42,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = ResNet(dataset).to(device)
 
 # Load the model weights (state_dict)
-model_path = './model/model.pth'
+model_path = './model/model_3.pth'
 try: 
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()  # Set to evaluation mode
@@ -62,7 +64,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Define the preprocessing pipeline
-
 def to_device(data, device):
     """Move tensor(s) to chosen device"""
     if isinstance(data, (list, tuple)):
@@ -90,27 +91,31 @@ def predict_image(img_tensor, model, dataset):
 @app.route('/classify', methods=['POST'])
 def classify_image():
     logging.debug("Request received for image classification")
-    
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image file found'}), 400
+    logging.debug(f"Form Data: {request.form}")
+    logging.debug(f"Request Headers: {request.headers}")
+    logging.debug(f"Request JSON: {request.get_json()}")
 
-    image_file = request.files['image']
-    if image_file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
+    data = request.get_json()
 
-    if not os.path.exists(model_path):
-        logging.error("Model file not found")
-        return jsonify({"error": "Model not found"}), 404
+    if 'image' not in data:
+        logging.error("No image found in request body")
+        return jsonify({'error': 'No image data found'}), 400
 
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], image_file.filename)
-    image_file.save(filepath)
-    
+    image_data_b64 = data['image']
+
     try:
-        image = Image.open(filepath).convert('RGB')
+        # Decode the base64 string back to binary data
+        image_data = base64.b64decode(image_data_b64)
+        
+        # Convert the binary data to an image
+        image = Image.open(BytesIO(image_data)).convert('RGB')
+        logging.debug(f"Decoded image successfully.")
+        
+        # Apply transformations and move the image tensor to device
         input_tensor = preprocess(image).to(device)  # Apply transformations and move to device
         logging.debug(f"Processed image tensor shape: {input_tensor.shape}")
     except Exception as e:
-        logging.error(f"Error processing image: {e}")
+        logging.error(f"Error processing base64 image: {e}")
         return jsonify({'error': f'Error processing image: {str(e)}'}), 400
 
     try:
