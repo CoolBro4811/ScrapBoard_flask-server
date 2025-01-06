@@ -42,7 +42,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = ResNet(dataset).to(device)
 
 # Load the model weights (state_dict)
-model_path = './model/model_3.pth'
+model_path = './model/model_more_data.pth'
 try: 
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()  # Set to evaluation mode
